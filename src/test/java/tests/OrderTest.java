@@ -1,34 +1,53 @@
 package tests;
 
 import io.github.bonigarcia.wdm.WebDriverManager;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
-import org.openqa.selenium.By;
-import org.openqa.selenium.WebElement;
-import org.openqa.selenium.WebDriver;
+import org.junit.*;
+import org.junit.runner.RunWith;
+import org.junit.runners.Parameterized;
+import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.support.ui.WebDriverWait;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import pageobject.HomePageScooter;
 import pageobject.OrderPageScooter;
 
-
 import java.time.Duration;
 
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.assertEquals;
-import static org.openqa.selenium.support.ui.ExpectedConditions.urlContains;
+import static org.junit.Assert.*;
 
+@RunWith(Parameterized.class)
 public class OrderTest {
 
     private WebDriver driver;
+    private final String browser;
+
+    public OrderTest(String browser) {
+        this.browser = browser;
+    }
+
+    @Parameterized.Parameters(name = "Browser: {0}")
+    public static Object[] data() {
+        return new Object[]{"chrome", "firefox"};
+    }
 
     @Before
-    public void setup() {
-        WebDriverManager.chromedriver().setup();
-        driver = new ChromeDriver();
+    public void setUp() {
+        if (browser.equals("chrome")) {
+            WebDriverManager.chromedriver().setup();
+            driver = new ChromeDriver();
+        } else if (browser.equals("firefox")) {
+            WebDriverManager.firefoxdriver().setup();
+            driver = new FirefoxDriver();
+        }
         driver.get("https://qa-scooter.praktikum-services.ru/");
+    }
+
+    @After
+    public void tearDown() {
+        if (driver != null) {
+            driver.quit();
+        }
     }
 
     @Test
@@ -43,17 +62,15 @@ public class OrderTest {
         HomePageScooter homePageScooter = new HomePageScooter(driver);
         homePageScooter.clickScooterLogo();
         new WebDriverWait(driver, Duration.ofSeconds(3))
-                .until(urlContains("https://qa-scooter.praktikum-services.ru/"));
+                .until(ExpectedConditions.urlContains("https://qa-scooter.praktikum-services.ru/"));
         assertEquals("https://qa-scooter.praktikum-services.ru/", driver.getCurrentUrl());
     }
 
     @Test
     public void testYandexLogoOpensNewWindow() {
-        driver.get("https://qa-scooter.praktikum-services.ru/");
         driver.findElement(By.xpath("//img[@alt='Yandex']")).click();
-
         new WebDriverWait(driver, Duration.ofSeconds(10))
-                .until(driver -> driver.getWindowHandles().size() > 1);
+                .until(d -> d.getWindowHandles().size() > 1);
 
         String originalWindow = driver.getWindowHandle();
         for (String windowHandle : driver.getWindowHandles()) {
@@ -68,12 +85,12 @@ public class OrderTest {
 
         assertTrue(driver.getCurrentUrl().contains("dzen.ru"));
     }
+
     @Test
     public void testOrderFormEmptyFieldsValidation() {
         HomePageScooter homePage = new HomePageScooter(driver);
         homePage.clickOrderButton(true);
         OrderPageScooter orderPage = new OrderPageScooter(driver);
-
         orderPage.clickNextButton();
 
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(5));
@@ -91,34 +108,20 @@ public class OrderTest {
                 wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath(".//div[text()='Введите корректный номер']"))).isDisplayed());
     }
 
-
-
-
     @Test
     public void testInvalidOrderNumberShowsNotFound() {
         HomePageScooter homePageScooter = new HomePageScooter(driver);
 
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(5));
 
-        // Явно открываем форму статуса заказа!
         driver.findElement(By.xpath("//button[text()='Статус заказа']")).click();
 
-        // Ждём пока поле станет кликабельным
         WebElement orderInput = wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//input[@placeholder='Введите номер заказа']")));
         orderInput.sendKeys("123456789");
 
-        // Нажимаем кнопку Go!
         driver.findElement(By.xpath("//button[text()='Go!']")).click();
 
-        // Ждем появления картинки Not found
         assertTrue("Сообщение 'Заказ не найден' не отображается",
                 wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//img[@alt='Not found']"))).isDisplayed());
-    }
-
-
-
-    @After
-    public void teardown() {
-        driver.quit();
     }
 }

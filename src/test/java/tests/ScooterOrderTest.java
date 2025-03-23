@@ -1,14 +1,12 @@
 package tests;
 
 import io.github.bonigarcia.wdm.WebDriverManager;
-import org.junit.After;
-import org.junit.Assert;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.*;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.firefox.FirefoxDriver;
 import pageobject.HomePageScooter;
 import pageobject.OrderPageScooter;
 
@@ -21,16 +19,11 @@ public class ScooterOrderTest {
 
     private WebDriver driver;
 
-    private final String name;
-    private final String surname;
-    private final String address;
-    private final String metro;
-    private final String phone;
-    private final String date;
-    private final String duration;
-    private final String comment;
+    private final String browser;
+    private final String name, surname, address, metro, phone, date, duration, comment;
 
-    public ScooterOrderTest(String name, String surname, String address, String metro, String phone, String date, String duration, String comment) {
+    public ScooterOrderTest(String browser, String name, String surname, String address, String metro, String phone, String date, String duration, String comment) {
+        this.browser = browser;
         this.name = name;
         this.surname = surname;
         this.address = address;
@@ -41,18 +34,25 @@ public class ScooterOrderTest {
         this.comment = comment;
     }
 
-    @Parameterized.Parameters
+    @Parameterized.Parameters(name = "Browser: {0}, Name: {1}")
     public static Object[][] getData() {
-        return new Object[][] {
-                {"Алексей", "Петров", "Ленина 1", "Сокольники", "+79261234567", "22.03.2025", "сутки", "нет"},
-                {"Мария", "Иванова", "Гагарина 12", "Черкизовская", "+79267654321", "23.03.2025", "двое суток", "Позвоните заранее"}
+        return new Object[][]{
+                {"chrome", "Алексей", "Петров", "Ленина 1", "Сокольники", "+79261234567", "24.03.2025", "сутки", "нет"},
+                {"firefox", "Мария", "Иванова", "Гагарина 12", "Черкизовская", "+79267654321", "24.03.2025", "четверо суток", "Позвоните заранее"}
         };
     }
 
     @Before
     public void setup() {
-        WebDriverManager.chromedriver().setup();
-        driver = new ChromeDriver();
+        if (browser.equals("chrome")) {
+            WebDriverManager.chromedriver().setup();
+            driver = new ChromeDriver();
+        } else if (browser.equals("firefox")) {
+            WebDriverManager.firefoxdriver().setup();
+            driver = new FirefoxDriver();
+        } else {
+            throw new IllegalArgumentException("Unknown browser: " + browser);
+        }
         driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(5));
         driver.get("https://qa-scooter.praktikum-services.ru/");
     }
@@ -60,7 +60,7 @@ public class ScooterOrderTest {
     @Test
     public void orderScooterPositiveScenarioTest() {
         HomePageScooter homePage = new HomePageScooter(driver);
-        homePage.clickOrderButton(true); // или false для нижней кнопки
+        homePage.clickOrderButton(true);
 
         OrderPageScooter orderPage = new OrderPageScooter(driver);
         orderPage.setFirstName(name);
@@ -77,15 +77,14 @@ public class ScooterOrderTest {
         orderPage.clickOrderFinalButton();
         orderPage.clickConfirmOrderButton();
 
-        // Проверка, что заказ оформлен успешно
         assertTrue("Окно с подтверждением заказа не появилось", orderPage.isOrderSuccessPopupVisible());
         assertTrue("Заказ не оформлен!", orderPage.isOrderSuccessMessageDisplayed());
     }
 
-
-
     @After
     public void teardown() {
-        driver.quit();
+        if (driver != null) {
+            driver.quit();
+        }
     }
 }
