@@ -3,6 +3,7 @@ package pageobject;
 import org.openqa.selenium.*;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
+
 import java.time.Duration;
 
 public class OrderPageScooter {
@@ -16,11 +17,12 @@ public class OrderPageScooter {
     private final By nextButton = By.xpath(".//button[text()='Далее']");
     private final By deliveryDateField = By.xpath("//input[@placeholder='* Когда привезти самокат']");
     private final By rentalDropdown = By.className("Dropdown-control");
+    private final By scooterColorBlackCheckbox = By.id("black");
     private final By commentField = By.xpath("//input[@placeholder='Комментарий для курьера']");
-    private final By colorBlack = By.id("black");
-    private final By finalOrderButton = By.xpath("//button[text()='Заказать']");
-    private final By confirmYesButton = By.xpath("//button[text()='Да']");
+    private final By orderFinalButton = By.xpath("//button[text()='Заказать']");
+    private final By confirmOrderButton = By.xpath("//button[text()='Да']");
     private final By successPopup = By.xpath("//div[contains(text(),'Заказ оформлен')]");
+    private final By calendarOverlay = By.className("react-datepicker__month");
 
     public OrderPageScooter(WebDriver driver) {
         this.driver = driver;
@@ -38,11 +40,11 @@ public class OrderPageScooter {
         driver.findElement(addressField).sendKeys(address);
     }
 
-    public void setMetroStation(String station) {
-        WebElement metroInput = driver.findElement(metroStationField);
-        metroInput.sendKeys(station);
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(5));
-        wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//div[text()='" + station + "']"))).click();
+    public void setMetroStation(String metro) {
+        WebElement input = driver.findElement(metroStationField);
+        input.sendKeys(metro);
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(3));
+        wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//div[text()='" + metro + "']"))).click();
     }
 
     public void setPhone(String phone) {
@@ -54,16 +56,19 @@ public class OrderPageScooter {
     }
 
     public void setDeliveryDate(String date) {
-        WebElement dateInput = driver.findElement(deliveryDateField);
-        ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", dateInput);
-        dateInput.sendKeys(date);
-        dateInput.sendKeys(Keys.ENTER); // нужно для Firefox
+        WebElement input = driver.findElement(deliveryDateField);
+        input.click();
+        input.sendKeys(date);
+        input.sendKeys(Keys.ESCAPE); // Закрываем календарь
+        new WebDriverWait(driver, Duration.ofSeconds(2))
+                .until(ExpectedConditions.invisibilityOfElementLocated(calendarOverlay));
     }
 
     public void setRentalDuration(String durationText) {
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(5));
         WebElement dropdown = driver.findElement(rentalDropdown);
         ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView(true);", dropdown);
+
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(5));
         wait.until(ExpectedConditions.elementToBeClickable(dropdown)).click();
 
         WebElement option = wait.until(ExpectedConditions.visibilityOfElementLocated(
@@ -72,7 +77,7 @@ public class OrderPageScooter {
     }
 
     public void setScooterColorBlack() {
-        driver.findElement(colorBlack).click();
+        driver.findElement(scooterColorBlackCheckbox).click();
     }
 
     public void setComment(String comment) {
@@ -80,20 +85,30 @@ public class OrderPageScooter {
     }
 
     public void clickOrderFinalButton() {
-        driver.findElement(finalOrderButton).click();
+        WebElement button = driver.findElement(orderFinalButton);
+
+               ((JavascriptExecutor) driver).executeScript("arguments[0].scrollIntoView({block: 'center'});", button);
+
+        new WebDriverWait(driver, Duration.ofSeconds(3))
+                .until(ExpectedConditions.visibilityOf(button));
+
+        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", button);
+
+        new WebDriverWait(driver, Duration.ofSeconds(5))
+                .until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//div[contains(@class, 'Order_Modal__')]")));
     }
+
+
 
     public void clickConfirmOrderButton() {
         WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(5));
-        wait.until(ExpectedConditions.elementToBeClickable(confirmYesButton)).click();
+        WebElement button = wait.until(ExpectedConditions.elementToBeClickable(confirmOrderButton));
+        ((JavascriptExecutor) driver).executeScript("arguments[0].click();", button);
     }
 
-    public boolean isOrderSuccessPopupVisible() {
-        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(10));
-        return wait.until(ExpectedConditions.visibilityOfElementLocated(successPopup)).isDisplayed();
-    }
 
     public boolean isOrderSuccessMessageDisplayed() {
-        return driver.findElement(successPopup).isDisplayed();
+        return new WebDriverWait(driver, Duration.ofSeconds(5))
+                .until(ExpectedConditions.visibilityOfElementLocated(successPopup)).isDisplayed();
     }
 }
