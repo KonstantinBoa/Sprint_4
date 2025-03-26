@@ -1,97 +1,121 @@
+// ScooterOrderTest.java (очищенный от дубликатов)
 package tests;
 
 import io.github.bonigarcia.wdm.WebDriverManager;
 import org.junit.*;
 import org.junit.runner.RunWith;
 import org.junit.runners.Parameterized;
-import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.firefox.FirefoxDriver;
+import org.openqa.selenium.support.ui.WebDriverWait;
+import org.openqa.selenium.support.ui.ExpectedConditions;
 import pageobject.HomePageScooter;
 import pageobject.OrderPageScooter;
 
 import java.time.Duration;
 
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 @RunWith(Parameterized.class)
 public class ScooterOrderTest {
     private WebDriver driver;
-
     private final String browser;
-    private final String name;
-    private final String surname;
-    private final String address;
-    private final String metro;
-    private final String phone;
-    private final String date;
-    private final String duration;
-    private final String comment;
 
-    public ScooterOrderTest(String browser, String name, String surname, String address, String metro,
-                            String phone, String date, String duration, String comment) {
+    public ScooterOrderTest(String browser) {
         this.browser = browser;
-        this.name = name;
-        this.surname = surname;
-        this.address = address;
-        this.metro = metro;
-        this.phone = phone;
-        this.date = date;
-        this.duration = duration;
-        this.comment = comment;
     }
 
-    @Parameterized.Parameters(name = "Browser: {0}, {1} {2}")
-    public static Object[][] getData() {
-        return new Object[][]{
-                {"chrome", "Алексей", "Петров", "Ленина 1", "Сокольники", "+79261234567", "24.03.2025", "сутки", "коммент 1"},
-                {"firefox", "Мария", "Иванова", "Гагарина 12", "Черкизовская", "+79267654321", "25.03.2025", "двое суток", "коммент 2"},
-        };
+    @Parameterized.Parameters(name = "Browser: {0}")
+    public static Object[] data() {
+        return new Object[]{"chrome", "firefox"};
     }
 
     @Before
-    public void setup() {
+    public void setUp() {
         if (browser.equals("chrome")) {
             WebDriverManager.chromedriver().setup();
             driver = new ChromeDriver();
         } else if (browser.equals("firefox")) {
             WebDriverManager.firefoxdriver().setup();
             driver = new FirefoxDriver();
-        } else {
-            throw new IllegalArgumentException("Unsupported browser: " + browser);
         }
-        driver.manage().timeouts().implicitlyWait(Duration.ofSeconds(5));
-        driver.manage().window().maximize();
         driver.get("https://qa-scooter.praktikum-services.ru/");
     }
 
-    @Test
-    public void orderScooterPositiveScenarioTest() {
-        HomePageScooter homePage = new HomePageScooter(driver);
-        homePage.clickOrderButton(true);
-
-        OrderPageScooter orderPage = new OrderPageScooter(driver);
-        orderPage.setFirstName(name);
-        orderPage.setLastName(surname);
-        orderPage.setAddress(address);
-        orderPage.setMetroStation(metro);
-        orderPage.setPhone(phone);
-        orderPage.clickNextButton();
-
-        orderPage.setDeliveryDate(date);
-        orderPage.setRentalDuration(duration);
-        orderPage.setScooterColorBlack();
-        orderPage.setComment(comment);
-        orderPage.clickOrderFinalButton();
-        orderPage.clickConfirmOrderButton();
-
-        assertTrue("Окно с подтверждением заказа не появилось", orderPage.isOrderSuccessMessageDisplayed());
-    }
-
     @After
-    public void teardown() {
+    public void tearDown() {
         if (driver != null) {
             driver.quit();
         }
+    }
+
+    @Test
+    public void testScooterLogoRedirectsToHomePage() {
+        driver.get("https://qa-scooter.praktikum-services.ru/order");
+        HomePageScooter homePageScooter = new HomePageScooter(driver);
+        homePageScooter.clickScooterLogo();
+        new WebDriverWait(driver, Duration.ofSeconds(3))
+                .until(ExpectedConditions.urlContains("https://qa-scooter.praktikum-services.ru/"));
+        assertEquals("https://qa-scooter.praktikum-services.ru/", driver.getCurrentUrl());
+    }
+
+    @Test
+    public void testYandexLogoOpensNewWindow() {
+        driver.findElement(By.xpath("//img[@alt='Yandex']")).click();
+        new WebDriverWait(driver, Duration.ofSeconds(10))
+                .until(d -> d.getWindowHandles().size() > 1);
+
+        String originalWindow = driver.getWindowHandle();
+        for (String windowHandle : driver.getWindowHandles()) {
+            if (!originalWindow.equals(windowHandle)) {
+                driver.switchTo().window(windowHandle);
+                break;
+            }
+        }
+
+        new WebDriverWait(driver, Duration.ofSeconds(10))
+                .until(ExpectedConditions.urlContains("dzen.ru"));
+
+        assertTrue(driver.getCurrentUrl().contains("dzen.ru"));
+    }
+
+    @Test
+    public void testOrderFormEmptyFieldsValidation() {
+        HomePageScooter homePage = new HomePageScooter(driver);
+        homePage.clickOrderButton(true);
+        OrderPageScooter orderPage = new OrderPageScooter(driver);
+        orderPage.clickNextButton();
+
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(5));
+
+        assertTrue("Ошибка валидации имени не отображается",
+                wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath(".//div[text()='Введите корректное имя']"))).isDisplayed());
+
+        assertTrue("Ошибка валидации фамилии не отображается",
+                wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath(".//div[text()='Введите корректную фамилию']"))).isDisplayed());
+
+        assertTrue("Ошибка валидации метро не отображается",
+                wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath(".//div[text()='Выберите станцию']"))).isDisplayed());
+
+        assertTrue("Ошибка валидации телефона не отображается",
+                wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath(".//div[text()='Введите корректный номер']"))).isDisplayed());
+    }
+
+    @Test
+    public void testInvalidOrderNumberShowsNotFound() {
+        HomePageScooter homePageScooter = new HomePageScooter(driver);
+
+        WebDriverWait wait = new WebDriverWait(driver, Duration.ofSeconds(5));
+
+        driver.findElement(By.xpath("//button[text()='Статус заказа']")).click();
+
+        WebElement orderInput = wait.until(ExpectedConditions.elementToBeClickable(By.xpath("//input[@placeholder='Введите номер заказа']")));
+        orderInput.sendKeys("123456789");
+
+        driver.findElement(By.xpath("//button[text()='Go!']")).click();
+
+        assertTrue("Сообщение 'Заказ не найден' не отображается",
+                wait.until(ExpectedConditions.visibilityOfElementLocated(By.xpath("//img[@alt='Not found']"))).isDisplayed());
     }
 }
