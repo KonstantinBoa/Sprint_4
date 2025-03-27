@@ -1,4 +1,4 @@
-// OrderPageScooter.java (обновлённый)
+// OrderPageScooter.java (обновлённый с учетом прожатия кнопок)
 package pageobject;
 
 import org.openqa.selenium.*;

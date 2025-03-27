@@ -1,4 +1,4 @@
-// OrderTest.java (обновлённый)
+// OrderTest.java (финальная версия с обработкой куков и параметром isHeaderButton)
 package tests;
 
 import io.github.bonigarcia.wdm.WebDriverManager;
@@ -15,7 +15,6 @@ import pageobject.OrderPageScooter;
 import java.time.Duration;
 
 import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
 
 @RunWith(Parameterized.class)
 public class OrderTest {
@@ -30,9 +29,10 @@ public class OrderTest {
     private final String date;
     private final String duration;
     private final String comment;
+    private final boolean isHeaderButton; // <-- добавлено
 
     public OrderTest(String browser, String name, String surname, String address, String metro,
-                     String phone, String date, String duration, String comment) {
+                     String phone, String date, String duration, String comment, boolean isHeaderButton) {
         this.browser = browser;
         this.name = name;
         this.surname = surname;
@@ -42,13 +42,16 @@ public class OrderTest {
         this.date = date;
         this.duration = duration;
         this.comment = comment;
+        this.isHeaderButton = isHeaderButton; // <-- добавлено
     }
 
-    @Parameterized.Parameters(name = "Browser: {0}, {1} {2}")
+    @Parameterized.Parameters(name = "Browser: {0}, Кнопка сверху: {9}")
     public static Object[][] getData() {
         return new Object[][]{
-                {"chrome", "Алексей", "Петров", "Ленина 1", "Сокольники", "+79261234567", "24.03.2025", "сутки", "коммент 1"},
-                {"firefox", "Мария", "Иванова", "Гагарина 12", "Черкизовская", "+79267654321", "25.03.2025", "двое суток", "коммент 2"},
+                {"chrome", "Алексей", "Петров", "Ленина 1", "Сокольники", "+79261234567", "28.03.2025", "сутки", "коммент 1", true},
+                {"chrome", "Алексей", "Петров", "Ленина 1", "Сокольники", "+79261234567", "28.03.2025", "сутки", "коммент 1", false},
+                {"firefox", "Мария", "Иванова", "Гагарина 12", "Черкизовская", "+79267654321", "28.03.2025", "двое суток", "коммент 2", true},
+                {"firefox", "Мария", "Иванова", "Гагарина 12", "Черкизовская", "+79267654321", "28.03.2025", "двое суток", "коммент 2", false},
         };
     }
 
@@ -71,7 +74,8 @@ public class OrderTest {
     @Test
     public void orderScooterPositiveScenarioTest() {
         HomePageScooter homePage = new HomePageScooter(driver);
-        homePage.clickOrderButton(true);
+        homePage.closeCookieBannerIfPresent(); // <-- добавлено
+        homePage.clickOrderButton(isHeaderButton);
 
         OrderPageScooter orderPage = new OrderPageScooter(driver);
         orderPage.setFirstName(name);
@@ -88,7 +92,6 @@ public class OrderTest {
         orderPage.clickOrderFinalButton();
         orderPage.clickConfirmOrderButton();
 
-        // Основная проверка — текст модального окна
         assertThat("Проверка оформления заказа",
                 orderPage.labelOrderCompleteGetText(), CoreMatchers.containsString("Заказ оформлен"));
     }
